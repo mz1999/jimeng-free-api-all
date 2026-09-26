@@ -15,21 +15,23 @@ export default {
             request
                 .validate('body.model', v => _.isUndefined(v) || _.isString(v))
                 .validate('body.messages', _.isArray)
+                .validate('body.n', v => _.isUndefined(v) || (_.isInteger(v) && v >= 1 && v <= 8))
+                .validate('body.workspace', v => _.isUndefined(v) || _.isString(v))
                 .validate('headers.authorization', _.isString)
             // refresh_token切分
             // 随机挑选一个refresh_token
             const credential = await resolveAuthorization(request.headers.authorization);
             const token = credential.token;
-            const { model, messages, stream } = request.body;
+            const { model, messages, stream, n, workspace } = request.body;
             try {
                 if (stream) {
-                    const stream = await createCompletionStream(messages, token, model);
+                    const stream = await createCompletionStream(messages, token, model, undefined, { n, workspace });
                     markCredentialSuccess(credential);
                     return new Response(stream, {
                         type: "text/event-stream"
                     });
                 }
-                const result = await createCompletion(messages, token, model);
+                const result = await createCompletion(messages, token, model, undefined, { n, workspace });
                 markCredentialSuccess(credential);
                 return result;
             } catch (error) {

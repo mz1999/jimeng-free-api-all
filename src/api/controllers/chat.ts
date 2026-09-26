@@ -141,7 +141,8 @@ export async function createCompletion(
   messages: any[],
   refreshToken: string,
   _model = DEFAULT_MODEL,
-  retryCount = 0
+  retryCount = 0,
+  options: { n?: number; workspace?: string } = {}
 ) {
   return (async () => {
     if (messages.length === 0)
@@ -259,6 +260,8 @@ export async function createCompletion(
           ratio: "1:1",  // 默认比例
           resolution: "2k",  // 初始尝试 2K，会自动降级
           filePath: imageUrls.length > 0 ? imageUrls[0] : "", // 第一张图片作为参考图
+          n: options.n,
+          workspace: options.workspace,
         },
         refreshToken
       );
@@ -308,7 +311,7 @@ export async function createCompletion(
       logger.warn(`Try again after ${RETRY_DELAY / 1000}s...`);
       return (async () => {
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
-        return createCompletion(messages, refreshToken, _model, retryCount + 1);
+        return createCompletion(messages, refreshToken, _model, retryCount + 1, options);
       })();
     }
     throw err;
@@ -327,7 +330,8 @@ export async function createCompletionStream(
   messages: any[],
   refreshToken: string,
   _model = DEFAULT_MODEL,
-  retryCount = 0
+  retryCount = 0,
+  options: { n?: number; workspace?: string } = {}
 ) {
   return (async () => {
     const { model, width, height } = parseModel(_model);
@@ -571,7 +575,13 @@ export async function createCompletionStream(
       generateImagesWithRetry(
         model,
         promptText || lastMessage.content,
-        { ratio: "1:1", resolution: "2k", filePath: imageUrls.length > 0 ? imageUrls[0] : "" },
+        {
+          ratio: "1:1",
+          resolution: "2k",
+          filePath: imageUrls.length > 0 ? imageUrls[0] : "",
+          n: options.n,
+          workspace: options.workspace,
+        },
         refreshToken
       )
         .then((generatedUrls) => {
@@ -660,7 +670,8 @@ export async function createCompletionStream(
           messages,
           refreshToken,
           _model,
-          retryCount + 1
+          retryCount + 1,
+          options
         );
       })();
     }

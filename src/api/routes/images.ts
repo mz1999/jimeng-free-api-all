@@ -50,6 +50,7 @@ export default {
         .validate("body.sample_strength", v => _.isUndefined(v) || _.isFinite(v))
         .validate("body.response_format", v => _.isUndefined(v) || _.isString(v))
         .validate("body.n", v => _.isUndefined(v) || (_.isInteger(v) && v >= 1 && v <= 8))
+        .validate("body.workspace", v => _.isUndefined(v) || _.isString(v))
         .validate("body.filePath", v =>
           _.isUndefined(v) || _.isString(v) || (_.isArray(v) && _.every(v, _.isString))
         )
@@ -71,6 +72,7 @@ export default {
         sample_strength: sampleStrength,
         response_format,
         n = 1,
+        workspace,
         filePath: bodyFilePath,
         filePaths: bodyFilePaths,
       } = request.body;
@@ -95,6 +97,7 @@ export default {
           negativePrompt,
           filePaths,
           n,
+          workspace,
         }, token);
         markCredentialSuccess(credential);
       } catch (error) {

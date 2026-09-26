@@ -6,6 +6,7 @@ import util from "@/lib/util.ts";
 import { getCredit, receiveCredit, request, uploadFile } from "./core.ts";
 import logger from "@/lib/logger.ts";
 import { JimengModelConfig, resolveImageModelConfig } from "./models.ts";
+import { ensureWorkspaceId } from "./workspace.ts";
 
 const DEFAULT_ASSISTANT_ID = 513695;
 export const DEFAULT_MODEL = "jimeng-image-5.0-lite";
@@ -192,6 +193,7 @@ export async function generateImages(
     filePath,
     filePaths = [],
     n = 1,
+    workspace = "",
   }: {
     ratio?: string;
     resolution?: string;
@@ -200,6 +202,7 @@ export async function generateImages(
     filePath?: string; // 向后兼容的单张参考图路径
     filePaths?: string[]; // 参考图路径，支持本地/网络/base64
     n?: number; // 生成张数 (1-8)
+    workspace?: string; // 即梦项目名：按名解析/创建后归档本次生成
   },
   refreshToken: string
 ) {
@@ -411,11 +414,17 @@ export async function generateImages(
   }
 
   const submitId = util.uuid();
-  
+
+  // 归档到指定即梦项目：按名解析/创建，失败降级不归档（出图优先于归类）
+  const workspaceId = String(workspace ?? "").trim()
+    ? await ensureWorkspaceId(workspace, refreshToken)
+    : undefined;
+
   // 构建请求数据
   const requestData = {
     extend: {
       root_model: model,
+      ...(workspaceId ? { workspace_id: workspaceId } : {}),
     },
     submit_id: submitId,
     metrics_extra: hasReferenceImages
@@ -669,6 +678,7 @@ export async function generateImagesWithRetry(
     filePath?: string;
     filePaths?: string[];
     n?: number;
+    workspace?: string;
   },
   refreshToken: string
 ): Promise<string[]> {
