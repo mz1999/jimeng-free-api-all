@@ -421,10 +421,12 @@ export async function generateImages(
     : undefined;
 
   // 构建请求数据
+  // workspace_id 必须是数字形态：字符串形态的大整数 id 会被即梦网关解析成 0
+  // （2026-09-26 实测：字符串 id 的请求落默认项目/update 命中 id 0）
   const requestData = {
     extend: {
       root_model: model,
-      ...(workspaceId ? { workspace_id: workspaceId } : {}),
+      ...(workspaceId ? { workspace_id: Number(workspaceId) } : {}),
     },
     submit_id: submitId,
     metrics_extra: hasReferenceImages
