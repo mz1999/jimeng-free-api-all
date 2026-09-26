@@ -184,6 +184,34 @@ export function validateApiKey(key: string): { valid: boolean; apiKeyId?: number
   return { valid: true, apiKeyId: row.id };
 }
 
+// ==================== 即梦项目名→id 缓存（workspace 归档，票 05） ====================
+// 即梦后端会在项目首次生成后自动把它改名为场景短语（auto_rename_status 1→0），
+// 按 name 精确匹配会从此失灵。此缓存记住「我们发出的名字 → 真实 workspace_id」，
+// 改名后仍能按 id 在项目列表里认领同一个文件夹；用户手动删除文件夹后缓存条目
+// 自然失效（列表里找不到该 id → 走重新创建）。
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS workspace_cache (
+    name TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+  );
+`);
+
+export function getCachedWorkspaceId(name: string): string | null {
+  const row = db.prepare('SELECT workspace_id FROM workspace_cache WHERE name = ?')
+    .get(name) as { workspace_id: string } | undefined;
+  return row?.workspace_id ?? null;
+}
+
+export function setCachedWorkspaceId(name: string, workspaceId: string): void {
+  db.prepare(`
+    INSERT INTO workspace_cache (name, workspace_id, updated_at)
+    VALUES (?, ?, datetime('now', 'localtime'))
+    ON CONFLICT(name) DO UPDATE SET workspace_id = excluded.workspace_id, updated_at = datetime('now', 'localtime')
+  `).run(name, workspaceId);
+}
+
 // ==================== 用户管理 ====================
 
 export function isSetupComplete(): boolean {

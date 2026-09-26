@@ -1,6 +1,7 @@
 import { request } from "./core.ts";
 import logger from "@/lib/logger.ts";
 import { pickWorkspaceByName } from "./workspace-pick.ts";
+import { getCachedWorkspaceId, setCachedWorkspaceId } from "@/lib/database.ts";
 
 export { pickWorkspaceByName };
 
@@ -14,6 +15,11 @@ const WORKSPACE_CREATE_URI = "/mweb/v1/workspace/create";
 
 /**
  * 按名称解析即梦项目 id：已存在则复用，不存在则创建（幂等）。
+ * 解析顺序（每步都拿项目列表当事实源）：
+ *   ①列表里按名精确命中 → 直接用；
+ *   ②名字没命中但缓存过 name→id，且该 id 还在列表里 → 即梦后端已把文件夹自动改名
+ *     （首次生成后 auto_rename_status 1→0），按 id 认领同一个文件夹；
+ *   ③都没有 → 创建并写缓存。
  * 任何失败只记警告并返回 undefined，调用方据此跳过归档，不阻断生成。
  */
 export async function ensureWorkspaceId(
@@ -26,11 +32,26 @@ export async function ensureWorkspaceId(
     const listData: any = await request("post", WORKSPACE_LIST_URI, refreshToken, {
       data: {},
     });
-    const existing = pickWorkspaceByName(listData?.workspaces, target);
+    const workspaces = listData?.workspaces ?? [];
+
+    const existing = pickWorkspaceByName(workspaces, target);
     if (existing) {
+      setCachedWorkspaceId(target, existing);
       logger.info(`[Workspace] 项目「${target}」已存在: ${existing}`);
       return existing;
     }
+
+    const cachedId = getCachedWorkspaceId(target);
+    const renamed = cachedId
+      ? workspaces.find((w: any) => String(w?.workspace_id) === cachedId)
+      : null;
+    if (cachedId && renamed) {
+      logger.info(
+        `[Workspace] 项目「${target}」已被即梦自动改名为「${renamed.name}」，按缓存 id 认领: ${cachedId}`
+      );
+      return cachedId;
+    }
+
     const createData: any = await request(
       "post",
       WORKSPACE_CREATE_URI,
@@ -41,6 +62,7 @@ export async function ensureWorkspaceId(
       logger.warn(`[Workspace] 创建项目「${target}」未返回 id，本次生成不归档`);
       return undefined;
     }
+    setCachedWorkspaceId(target, String(createData.workspace_id));
     logger.info(`[Workspace] 已创建项目「${target}」: ${createData.workspace_id}`);
     return String(createData.workspace_id);
   } catch (error) {
