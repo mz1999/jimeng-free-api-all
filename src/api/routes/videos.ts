@@ -32,6 +32,7 @@ export default {
                 .validate('body.duration', v => _.isUndefined(v) || _.isInteger(v))
                 .validate('body.file_paths', v => _.isUndefined(v) || _.isArray(v))
                 .validate('body.response_format', v => _.isUndefined(v) || _.isString(v))
+                .validate('body.workspace', v => _.isUndefined(v) || _.isString(v))
                 .validate('headers.authorization', _.isString);
 
             // refresh_token切分
@@ -47,7 +48,8 @@ export default {
                 resolution,
                 duration,
                 file_paths = [],
-                response_format = "url"
+                response_format = "url",
+                workspace
             } = request.body;
 
             // 处理文件上传
@@ -67,7 +69,8 @@ export default {
                         ratio,
                         resolution,
                         duration,
-                        filePaths
+                        filePaths,
+                        workspace
                     },
                     token
                 );

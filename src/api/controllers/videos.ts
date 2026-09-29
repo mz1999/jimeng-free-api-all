@@ -6,6 +6,7 @@ import util from "@/lib/util.ts";
 import { getCredit, receiveCredit, request, uploadFile } from "./core.ts";
 import logger from "@/lib/logger.ts";
 import { JimengModelConfig, resolveVideoModelConfig } from "./models.ts";
+import { ensureWorkspaceId } from "./workspace.ts";
 
 const DEFAULT_ASSISTANT_ID = 513695;
 export const DEFAULT_MODEL = "jimeng-video-seedance-2.0";
@@ -339,6 +340,7 @@ export async function generateVideo(
     resolution = "720p",
     duration,
     filePaths = [],
+    workspace,
   }: {
     ratio?: string;
     resolution?: string;
@@ -346,6 +348,7 @@ export async function generateVideo(
     filePaths?: string[];
     width?: number;
     height?: number;
+    workspace?: string; // 即梦项目名：按名解析/创建后归档本次生成（同 images.ts）
   },
   refreshToken: string
 ) {
@@ -507,6 +510,11 @@ export async function generateVideo(
     `视频请求参考图${hasReferenceFrame ? "已写入首/尾帧字段" : "未写入首/尾帧字段"}`
   );
 
+  // 归档到指定即梦项目：按名解析/创建，失败降级不归档（出片优先于归类，同 images.ts）
+  const workspaceId = String(workspace ?? "").trim()
+    ? await ensureWorkspaceId(workspace!, refreshToken)
+    : undefined;
+
   // 构建请求参数
   const { aigc_data } = await request(
     "post",
@@ -522,6 +530,9 @@ export async function generateVideo(
       data: {
         extend: {
           root_model: model,
+          // workspace_id 必须是数字形态：字符串形态的大整数 id 会被即梦网关解析成 0
+          // （同 images.ts，2026-09-26 实测）
+          ...(workspaceId ? { workspace_id: Number(workspaceId) } : {}),
           m_video_commerce_info: videoCommerceInfo,
           m_video_commerce_info_list: [videoCommerceInfo],
         },
@@ -705,6 +716,7 @@ export async function generateVideoWithRetry(
     resolution?: string;
     duration?: number;
     filePaths?: string[];
+    workspace?: string;
   },
   refreshToken: string
 ): Promise<string> {

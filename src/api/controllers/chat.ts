@@ -179,6 +179,7 @@ export async function createCompletion(
             height,
             resolution: "720p", // 默认分辨率
             filePaths: imageUrls, // 传递提取的图片作为首尾帧
+            workspace: options.workspace, // 即梦项目归档（同图片链路）
           },
           refreshToken
         );
@@ -448,7 +449,7 @@ export async function createCompletionStream(
       generateVideo(
         _model,
         promptText || lastMessage.content,
-        { width, height, resolution: "720p", filePaths: imageUrls },
+        { width, height, resolution: "720p", filePaths: imageUrls, workspace: options.workspace },
         refreshToken
       )
         .then((videoUrl) => {
